@@ -1,0 +1,13 @@
+go 1.24.5
+
+use (
+	./gemini
+	./jsonpatch
+	./jsonpointer
+	./jsonschema
+	./memlite
+	./muid
+	./registry
+	./scxml
+	./xmldom
+)
