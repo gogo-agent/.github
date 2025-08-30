@@ -2,248 +2,495 @@
 
 ## Overview
 
-This document outlines the design for making the SCXML package fully compliant with the W3C SCXML specification (Version 1 September 2015) while leveraging the custom xmldom package for XML processing. The SCXML (State Chart XML) implementation provides a complete state machine engine that adheres to the W3C recommendation for control abstraction.
+This document outlines the design for implementing a State Chart XML (SCXML) interpreter in Go that adheres to the W3C SCXML specification. The implementation will leverage the existing xmldom package for XML processing and integrate with the registry and muid packages for component management and unique ID generation.
 
-The implementation is structured around the core W3C SCXML algorithm while utilizing existing infrastructure components like xmldom for XML processing, muid for unique identifiers, and registry for component management.
+The SCXML interpreter will provide a complete implementation of the W3C recommendation, enabling the creation and execution of hierarchical state machines with features such as parallel states, history states, and data models.
 
 ## Architecture
 
-The SCXML implementation follows a modular architecture with the following core components:
+### System Components
 
-``mermaid
+The SCXML implementation consists of several core components:
+
+1. **XML Parser/Processor** - Uses the xmldom package for parsing and manipulating SCXML documents
+2. **State Machine Interpreter** - Core engine that executes SCXML state machines according to the W3C algorithm
+3. **Data Model** - Handles data manipulation within the state machine (supporting null and ECMAScript models)
+4. **Event System** - Manages internal and external events using MUID for unique identification
+5. **Component Registry** - Uses the registry package for managing pluggable components
+6. **IoProcessors** - Handles communication with external systems
+7. **Clock Abstraction** - Provides deterministic time handling for testing
+
+### Component Diagram
+
+```mermaid
 graph TD
-A[SCXML Interpreter] --> B[XML DOM Parser]
-A --> C[Data Model]
-A --> D[Event System]
-A --> E[IoProcessor Manager]
-A --> F[Clock Abstraction]
-B --> G[xmldom Package]
-C --> H[ECMAScript/Null Data Models]
-D --> I[MUID-based Event IDs]
-E --> J[HTTP/WebSocket/SCXML IoProcessors]
-F --> K[Real/Simulated Time]
+    A[SCXML Interpreter] --> B[XML DOM Processor]
+    A --> C[Data Model Handler]
+    A --> D[Event Queue Manager]
+    A --> E[Component Registry]
+    A --> F[IoProcessor Manager]
+    A --> G[Clock Abstraction]
 
-    style G fill:#e1f5fe
-    style A fill:#f3e5f5
-
+    B --> H[xmldom Package]
+    D --> I[MUID Generator]
+    E --> J[Registry Package]
 ```
-
-### Core Components
-
-1. **Interpreter**: Main execution engine implementing the W3C SCXML algorithm (to be fully implemented)
-2. **XML DOM Parser**: Uses xmldom package for parsing SCXML documents (utilizing existing xmldom package)
-3. **Data Model**: Supports multiple data models (null, ECMAScript) per W3C spec (partially implemented)
-4. **Event System**: MUID-based event identification with priority queuing (implemented in `scxml/event/`)
-5. **IoProcessor Manager**: Handles external communication (HTTP, WebSocket, etc.) (implemented in `scxml/ioprocessor/`)
-6. **Clock Abstraction**: Time management for deterministic testing (implemented in `scxml/clock/`)
-
-## XML Processing with xmldom
-
-The SCXML implementation utilizes the custom xmldom package for all XML processing needs, ensuring compliance with DOM specifications where applicable to SCXML. The xmldom package provides a complete implementation of the DOM interfaces needed for SCXML processing.
-
-### Key xmldom Features Used
-
-- **Document Interface**: For parsing and manipulating SCXML documents
-- **Element Interface**: For accessing SCXML elements and attributes
-- **Node Interface**: For traversing the SCXML document tree
-- **NamedNodeMap**: For managing element attributes
-- **NodeList**: For handling collections of elements
-
-### XML Processing Flow
-
-```
-
-sequenceDiagram
-participant Parser
-participant xmldom
-participant Interpreter
-
-    Parser->>xmldom: Parse SCXML document
-    xmldom-->>Parser: Return DOM Document
-    Parser->>Interpreter: Extract state machine definition
-    Interpreter->>xmldom: Query elements/attributes
-    xmldom-->>Interpreter: Return node data
-
-````
-
-The xmldom package provides all necessary DOM interfaces required by the SCXML specification, including Document, Element, Node, and related interfaces. This allows for standards-compliant parsing and manipulation of SCXML documents.
-
-## W3C SCXML Specification Compliance
-
-### Core SCXML Elements Implementation
-
-| Element        | Status           | Implementation Notes                     |
-| -------------- | ---------------- | ---------------------------------------- |
-| `<scxml>`      | Partially Done   | Basic structure implemented              |
-| `<state>`      | Planned          | Basic and compound states                |
-| `<parallel>`   | Planned          | Parallel state composition               |
-| `<transition>` | Planned          | Event-driven transitions with conditions |
-| `<initial>`    | Planned          | Initial state configuration              |
-| `<final>`      | Planned          | Final state with done events             |
-| `<onentry>`    | Planned          | Entry actions execution                  |
-| `<onexit>`     | Planned          | Exit actions execution                   |
-| `<history>`    | Planned          | History state management                 |
-| `<datamodel>`  | Partially Done   | Data model container                     |
-| `<data>`       | Partially Done   | Data declarations                        |
-| `<assign>`     | Partially Done   | Variable assignment                      |
-| `<donedata>`   | Planned          | Final state data                         |
-| `<content>`    | Planned          | Inline content specification             |
-| `<param>`      | Planned          | Parameter passing                        |
-| `<script>`     | Planned          | Script execution                         |
-| `<send>`       | Partially Done   | Event sending to targets                 |
-| `<cancel>`     | Planned          | Event cancellation                       |
-| `<invoke>`     | Planned          | External service invocation              |
-| `<finalize>`   | Planned          | Invocation result processing             |
-| `<if>`         | Planned          | Conditional execution                    |
-| `<elseif>`     | Planned          | Conditional branching                    |
-| `<else>`       | Planned          | Conditional else branch                  |
-| `<foreach>`    | Planned          | Iteration construct                      |
-| `<log>`        | Planned          | Logging functionality                    |
-
-### Data Model Compliance
-
-The implementation supports multiple data models as specified in the W3C specification:
-
-1. **Null Data Model**: Minimal implementation for simple state machines (already implemented in `scxml/datamodel/null.go`)
-2. **ECMAScript Data Model**: Full ECMAScript support for complex expressions (partially implemented in `scxml/datamodel/ecmascript.go`)
-3. **XPath Data Model**: XPath-based data manipulation (planned for future implementation)
-
-The data model package follows the W3C SCXML specification with interfaces for:
-
-- Expression evaluation
-- Conditional expression evaluation
-- Script execution
-- Variable assignment and retrieval
-- System variable management
-
-### Event System Compliance
-
-The event system implements the W3C SCXML event processing model:
-
-1. **External Events**: From IoProcessors (implemented in `scxml/event/`)
-2. **Internal Events**: Generated by the state machine (implemented in `scxml/event/`)
-3. **Platform Events**: System-generated events (errors, etc.) (implemented in `scxml/event/`)
-4. **Event Prioritization**: Internal > Platform > External (implemented via `EventPriority` enum)
-5. **Event Queuing**: Proper ordering and processing (implemented via priority queues)
-
-Events are uniquely identified using MUID (Monotonically Unique IDs) for guaranteed uniqueness and traceability across distributed systems.
-
-### IoProcessor Compliance
-
-IoProcessors handle external communication as per the W3C specification:
-
-1. **SCXML IoProcessor**: Internal session communication (implemented in `scxml/ioprocessor/scxml.go`)
-2. **HTTP IoProcessor**: HTTP-based event exchange (implemented in `scxml/ioprocessor/http.go`)
-3. **WebSocket IoProcessor**: Real-time bidirectional communication (implemented in `scxml/ioprocessor/websocket.go`)
-4. **Internal IoProcessor**: Internal event processing (implemented in `scxml/ioprocessor/internal.go`)
-
-IoProcessors are managed through a registry system that allows for dynamic registration and retrieval of processor implementations. Each IoProcessor implements the interface defined in `scxml/ioprocessor/interface.go`.
 
 ## Implementation Details
 
-### State Machine Execution Algorithm
+### XML Processing with xmldom
 
-The interpreter will implement the exact algorithm specified in the W3C recommendation:
+The xmldom package provides the foundation for XML processing in the SCXML implementation:
 
-1. **Macrostep Execution**:
+- Parse SCXML documents into DOM structures
+- Navigate and manipulate XML elements and attributes
+- Validate SCXML document structure
+- Support for namespaces and XML Schema validation
 
-   - Select transitions based on events
-   - Remove conflicting transitions
-   - Execute microsteps for selected transitions
+### State Machine Core
 
-2. **Microstep Execution**:
+The interpreter.go file will contain the main SCXML interpreter implementation that follows the W3C algorithm specification exactly.
 
-   - Exit states in exit set
-   - Execute transition content
-   - Enter states in entry set
+### Data Models
 
-3. **Run-to-Completion**: Each external event triggers exactly one macrostep
+Support for multiple data models:
 
-The algorithm will be implemented following the formal specification in the W3C recommendation, with proper handling of:
-- Transition selection and conflict resolution
-- Entry and exit procedures
-- Data model operations
-- Event processing
+- Null data model (minimal implementation)
+- ECMAScript data model (full scripting support)
 
-### Concurrency Model
+### Event Handling
 
-The implementation will support the `<parallel>` element for concurrent state execution while maintaining deterministic behavior through document order priorities.
+Events are managed through:
 
-### Error Handling
+- External event queue (blocking)
+- Internal event queue (non-blocking)
+- MUID-based unique event identification
+- Event name matching and filtering
 
-Proper error handling will be implemented according to the W3C error event specification:
+### Component Registry Integration
 
-- Error events generation
-- Error event processing
-- Graceful degradation
+The registry package is used for:
+
+- IoProcessor registration and management
+- Data model provider registration
+- Custom action handler registration
+- Extensible component architecture
+
+## SCXML Algorithm Implementation
+
+The SCXML interpreter will implement the exact algorithm specified in the W3C recommendation. The following pseudocode algorithms from the specification will be implemented:
+
+### Main Interpretation Algorithm
+
+```pseudocode
+procedure interpret(doc):
+    if not valid(doc): failWithError()
+    expandScxmlSource(doc)
+    configuration = new OrderedSet()
+    statesToInvoke = new OrderedSet()
+    internalQueue = new Queue()
+    externalQueue = new BlockingQueue()
+    historyValue = new HashTable()
+    datamodel = new Datamodel(doc)
+    if doc.binding == "early":
+        initializeDatamodel(datamodel, doc)
+    running = true
+    executeGlobalScriptElement(doc)
+    enterStates([doc.initial.transition])
+    mainEventLoop()
+```
+
+### Main Event Loop
+
+```pseudocode
+procedure mainEventLoop():
+    while running:
+        enabledTransitions = null
+        macrostepDone = false
+        # Here we handle eventless transitions and transitions
+        # triggered by internal events until macrostep is complete
+        while running and not macrostepDone:
+            enabledTransitions = selectEventlessTransitions()
+            if enabledTransitions.isEmpty():
+                if internalQueue.isEmpty():
+                    macrostepDone = true
+                else:
+                    internalEvent = internalQueue.dequeue()
+                    datamodel["_event"] = internalEvent
+                    enabledTransitions = selectTransitions(internalEvent)
+            if not enabledTransitions.isEmpty():
+                microstep(enabledTransitions.toList())
+        # either we're in a final state, and we break out of the loop
+        if not running:
+            break
+        # or we've completed a macrostep, so we start a new macrostep by waiting for an external event
+        # Here we invoke whatever needs to be invoked. The implementation of 'invoke' is platform-specific
+        for state in statesToInvoke.sort(entryOrder):
+            for inv in state.invoke.sort(documentOrder):
+                invoke(inv)
+        statesToInvoke.clear()
+        # Invoking may have raised internal error events and we iterate to handle them
+        if not internalQueue.isEmpty():
+            continue
+        # A blocking wait for an external event.  Alternatively, if we have been invoked
+        # our parent session also might cancel us.  The mechanism for this is platform specific,
+        # but here we assume it's a special event we receive
+        externalEvent = externalQueue.dequeue()
+        if isCancelEvent(externalEvent):
+            running = false
+            continue
+        datamodel["_event"] = externalEvent
+        for state in configuration:
+            for inv in state.invoke:
+                if inv.invokeid == externalEvent.invokeid:
+                    applyFinalize(inv, externalEvent)
+                if inv.autoforward:
+                    send(inv.id, externalEvent)
+        enabledTransitions = selectTransitions(externalEvent)
+        if not enabledTransitions.isEmpty():
+            microstep(enabledTransitions.toList())
+    # End of outer while running loop.  If we get here, we have reached a top-level final state or have been cancelled
+    exitInterpreter()
+```
+
+### Exit Interpreter Procedure
+
+```pseudocode
+procedure exitInterpreter():
+    statesToExit = configuration.toList().sort(exitOrder)
+    for s in statesToExit:
+        for content in s.onexit.sort(documentOrder):
+            executeContent(content)
+        for inv in s.invoke:
+            cancelInvoke(inv)
+        configuration.delete(s)
+        if isFinalState(s) and isScxmlElement(s.parent):
+            returnDoneEvent(s.donedata)
+```
+
+### Select Eventless Transitions
+
+```pseudocode
+function selectEventlessTransitions():
+    enabledTransitions = new OrderedSet()
+    atomicStates = configuration.toList().filter(isAtomicState).sort(documentOrder)
+    for state in atomicStates:
+        loop: for s in [state].append(getProperAncestors(state, null)):
+            for t in s.transition.sort(documentOrder):
+                if not t.event and conditionMatch(t):
+                    enabledTransitions.add(t)
+                    break loop
+    enabledTransitions = removeConflictingTransitions(enabledTransitions)
+    return enabledTransitions
+```
+
+### Select Transitions
+
+```pseudocode
+function selectTransitions(event):
+    enabledTransitions = new OrderedSet()
+    atomicStates = configuration.toList().filter(isAtomicState).sort(documentOrder)
+    for state in atomicStates:
+        loop: for s in [state].append(getProperAncestors(state, null)):
+            for t in s.transition.sort(documentOrder):
+                if t.event and nameMatch(t.event, event.name) and conditionMatch(t):
+                    enabledTransitions.add(t)
+                    break loop
+    enabledTransitions = removeConflictingTransitions(enabledTransitions)
+    return enabledTransitions
+```
+
+### Remove Conflicting Transitions
+
+```pseudocode
+function removeConflictingTransitions(enabledTransitions):
+    filteredTransitions = new OrderedSet()
+    //toList sorts the transitions in the order of the states that selected them
+    for t1 in enabledTransitions.toList():
+        t1Preempted = false
+        transitionsToRemove = new OrderedSet()
+        for t2 in filteredTransitions.toList():
+            if computeExitSet([t1]).hasIntersection(computeExitSet([t2])):
+                if isDescendant(t1.source, t2.source):
+                    transitionsToRemove.add(t2)
+                else:
+                    t1Preempted = true
+                    break
+        if not t1Preempted:
+            for t3 in transitionsToRemove.toList():
+                filteredTransitions.delete(t3)
+            filteredTransitions.add(t1)
+    return filteredTransitions
+```
+
+### Microstep Procedure
+
+```pseudocode
+procedure microstep(enabledTransitions):
+    exitStates(enabledTransitions)
+    executeTransitionContent(enabledTransitions)
+    enterStates(enabledTransitions)
+```
+
+### Exit States Procedure
+
+```pseudocode
+procedure exitStates(enabledTransitions):
+    statesToExit = computeExitSet(enabledTransitions)
+    for s in statesToExit:
+        statesToInvoke.delete(s)
+    statesToExit = statesToExit.toList().sort(exitOrder)
+    for s in statesToExit:
+        for h in s.history:
+            if h.type == "deep":
+                f = lambda s0: isAtomicState(s0) and isDescendant(s0,s)
+            else:
+                f = lambda s0: s0.parent == s
+            historyValue[h.id] = configuration.toList().filter(f)
+        for content in s.onexit.sort(documentOrder):
+            executeContent(content)
+        for inv in s.invoke:
+            cancelInvoke(inv)
+        configuration.delete(s)
+```
+
+### Compute Exit Set
+
+```pseudocode
+function computeExitSet(transitions)
+    statesToExit = new OrderedSet
+    for t in transitions:
+        if t.target:
+            domain = getTransitionDomain(t)
+            for s in configuration:
+                if isDescendant(s,domain):
+                    statesToExit.add(s)
+    return statesToExit
+```
+
+### Execute Transition Content
+
+```pseudocode
+procedure executeTransitionContent(enabledTransitions):
+    for t in enabledTransitions:
+        executeContent(t)
+```
+
+### Enter States Procedure
+
+```pseudocode
+procedure enterStates(enabledTransitions):
+    statesToEnter = new OrderedSet()
+    statesForDefaultEntry = new OrderedSet()
+    // initialize the temporary table for default content in history states
+    defaultHistoryContent = new HashTable()
+    computeEntrySet(enabledTransitions, statesToEnter, statesForDefaultEntry, defaultHistoryContent)
+    for s in statesToEnter.toList().sort(entryOrder):
+        configuration.add(s)
+        statesToInvoke.add(s)
+        if binding == "late" and s.isFirstEntry:
+            initializeDataModel(datamodel.s,doc.s)
+            s.isFirstEntry = false
+        for content in s.onentry.sort(documentOrder):
+            executeContent(content)
+        if statesForDefaultEntry.isMember(s):
+            executeContent(s.initial.transition)
+        if defaultHistoryContent[s.id]:
+            executeContent(defaultHistoryContent[s.id])
+        if isFinalState(s):
+            if isSCXMLElement(s.parent):
+                running = false
+            else:
+                parent = s.parent
+                grandparent = parent.parent
+                internalQueue.enqueue(new Event("done.state." + parent.id, s.donedata))
+                if isParallelState(grandparent):
+                    if getChildStates(grandparent).every(isInFinalState):
+                        internalQueue.enqueue(new Event("done.state." + grandparent.id))
+```
+
+### Compute Entry Set
+
+```pseudocode
+procedure computeEntrySet(transitions, statesToEnter, statesForDefaultEntry, defaultHistoryContent)
+    for t in transitions:
+        for s in t.target:
+            addDescendantStatesToEnter(s,statesToEnter,statesForDefaultEntry, defaultHistoryContent)
+        ancestor = getTransitionDomain(t)
+        for s in getEffectiveTargetStates(t)):
+            addAncestorStatesToEnter(s, ancestor, statesToEnter, statesForDefaultEntry, defaultHistoryContent)
+```
+
+### Add Descendant States To Enter
+
+```pseudocode
+procedure addDescendantStatesToEnter(state,statesToEnter,statesForDefaultEntry, defaultHistoryContent):
+    if isHistoryState(state):
+        if historyValue[state.id]:
+            for s in historyValue[state.id]:
+                addDescendantStatesToEnter(s,statesToEnter,statesForDefaultEntry, defaultHistoryContent)
+            for s in historyValue[state.id]:
+                addAncestorStatesToEnter(s, state.parent, statesToEnter, statesForDefaultEntry, defaultHistoryContent)
+        else:
+            defaultHistoryContent[state.parent.id] = state.transition.content
+            for s in state.transition.target:
+                addDescendantStatesToEnter(s,statesToEnter,statesForDefaultEntry, defaultHistoryContent)
+            for s in state.transition.target:
+                addAncestorStatesToEnter(s, state.parent, statesToEnter, statesForDefaultEntry, defaultHistoryContent)
+    else:
+        statesToEnter.add(state)
+        if isCompoundState(state):
+            statesForDefaultEntry.add(state)
+            for s in state.initial.transition.target:
+                addDescendantStatesToEnter(s,statesToEnter,statesForDefaultEntry, defaultHistoryContent)
+            for s in state.initial.transition.target:
+                addAncestorStatesToEnter(s, state, statesToEnter, statesForDefaultEntry, defaultHistoryContent)
+        else:
+            if isParallelState(state):
+                for child in getChildStates(state):
+                    if not statesToEnter.some(lambda s: isDescendant(s,child)):
+                        addDescendantStatesToEnter(child,statesToEnter,statesForDefaultEntry, defaultHistoryContent)
+```
+
+### Add Ancestor States To Enter
+
+```pseudocode
+procedure addAncestorStatesToEnter(state, ancestor, statesToEnter, statesForDefaultEntry, defaultHistoryContent)
+    for anc in getProperAncestors(state,ancestor):
+        statesToEnter.add(anc)
+        if isParallelState(anc):
+            for child in getChildStates(anc):
+                if not statesToEnter.some(lambda s: isDescendant(s,child)):
+                    addDescendantStatesToEnter(child,statesToEnter,statesForDefaultEntry, defaultHistoryContent)
+```
+
+### Is In Final State
+
+```pseudocode
+function isInFinalState(s):
+    if isCompoundState(s):
+        return getChildStates(s).some(lambda s: isFinalState(s) and configuration.isMember(s))
+    elif isParallelState(s):
+        return getChildStates(s).every(isInFinalState)
+    else:
+        return false
+```
+
+### Get Transition Domain
+
+```pseudocode
+function getTransitionDomain(t)
+    tstates = getEffectiveTargetStates(t)
+    if not tstates:
+        return null
+    elif t.type == "internal" and isCompoundState(t.source) and tstates.every(lambda s: isDescendant(s,t.source)):
+        return t.source
+    else:
+        return findLCCA([t.source].append(tstates))
+```
+
+### Find LCCA (Least Common Compound Ancestor)
+
+```pseudocode
+function findLCCA(stateList):
+    for anc in getProperAncestors(stateList.head(),null).filter(isCompoundStateOrScxmlElement):
+        if stateList.tail().every(lambda s: isDescendant(s,anc)):
+            return anc
+```
+
+### Get Effective Target States
+
+```pseudocode
+function getEffectiveTargetStates(transition)
+    targets = new OrderedSet()
+    for s in transition.target
+        if isHistoryState(s):
+            if historyValue[s.id]:
+                targets.union(historyValue[s.id])
+            else:
+                targets.union(getEffectiveTargetStates(s.transition))
+        else:
+            targets.add(s)
+    return targets
+```
+
+### Helper Functions
+
+The implementation will also include the following helper functions as specified in the W3C SCXML algorithm:
+
+1. `getProperAncestors(state1, state2)` - Returns the set of all ancestors of state1 in ancestry order
+2. `isDescendant(state1, state2)` - Returns true if state1 is a descendant of state2
+3. `getChildStates(state1)` - Returns a list containing all state, final, and parallel children of state1
+4. `isAtomicState(state)` - Returns true if state is atomic (has no state, final, or parallel children)
+5. `isHistoryState(state)` - Returns true if state is a history pseudo-state
+6. `isCompoundState(state)` - Returns true if state is a compound state
+7. `isParallelState(state)` - Returns true if state is a parallel state
+8. `isFinalState(state)` - Returns true if state is a final state
+9. `isSCXMLElement(state)` - Returns true if state is the SCXML element
+10. `conditionMatch(transition)` - Evaluates the condition of a transition
+11. `nameMatch(eventDescriptor, eventName)` - Matches event names according to SCXML specification
 
 ## Integration Points
 
-### xmldom Integration
+### xmldom Package Integration
 
-The SCXML parser will use xmldom interfaces for all XML operations:
+The SCXML interpreter will use the xmldom package for all XML processing needs:
 
-```go
-// Example of xmldom usage in SCXML parsing
-doc := xmldom.Parse(scxmlContent)
-scxmlElement := doc.DocumentElement()
-stateElements := scxmlElement.GetElementsByTagName("state")
-````
+- Parsing SCXML documents
+- Navigating the document structure
+- Manipulating XML elements and attributes
+- Validating document structure
 
-### MUID Integration
+### Registry Package Integration
 
-All events and sessions will use MUID for unique identification:
+The registry package will be used for:
 
-```go
-// Event ID generation
-event := events.NewExternalEvent("user.click")
-// event.ID is a MUID string
-```
+- Registering IoProcessors for external communication
+- Managing data model implementations
+- Handling custom action extensions
+- Providing a pluggable architecture
 
-### Registry Integration
+### MUID Package Integration
 
-IoProcessors and Data Models will be registered using the registry package:
+MUID (Monotonically Unique IDs) will be used for:
 
-```go
-// Registering an IoProcessor
-ioprocessor.Register("http", httpIoProcessorFactory)
-```
-
-### Clock Abstraction
-
-The clock abstraction provides time-related operations that can be mocked for testing, following the implementation in `scxml/clock/`:
-
-1. **Real Clock**: Provides actual system time for production use
-2. **Mock Clock**: Allows for deterministic testing by controlling time progression
-3. **Simulation Clock**: Enables fast-forwarding through time for simulation purposes
-
-The clock interface supports all necessary time operations required by the SCXML specification, including timers, tickers, and sleep functions.
+- Generating unique event IDs
+- Ensuring deterministic behavior in distributed systems
+- Tracking event causality
 
 ## Testing Strategy
 
-1. **Unit Tests**: Component-level testing using Go testing framework
-2. **Conformance Tests**: W3C SCXML test suite implementation
-3. **Integration Tests**: End-to-end state machine execution tests
-4. **Performance Tests**: Benchmarking state machine execution
-5. **Deterministic Testing**: Using clock simulation for reproducible tests
+### Unit Testing
 
-## Security Considerations
+- Test each algorithm function independently
+- Verify data model implementations
+- Test event queue management
+- Validate XML processing functions
 
-1. **XML Processing**: Protection against XML-based attacks (XXE, etc.)
-2. **Script Execution**: Sandboxed script execution for data models
-3. **Event Validation**: Proper validation of incoming events
-4. **Resource Limits**: Protection against resource exhaustion
+### Integration Testing
 
-## Performance Considerations
+- End-to-end state machine execution
+- Event processing workflows
+- Data model integration
+- IoProcessor communication
 
-1. **Memory Management**: Efficient DOM node handling
-2. **Event Processing**: Optimized event queue implementation
-3. **Transition Selection**: Fast transition matching algorithms
-4. **Concurrency**: Efficient parallel state handling
+### Compliance Testing
+
+- W3C SCXML test suite implementation
+- Standard SCXML document validation
+- Interoperability testing
 
 ## Future Extensions
 
-1. **Additional Data Models**: Support for XPath and other data models
-2. **Advanced IoProcessors**: More communication protocols
-3. **Visualization**: State machine visualization tools
-4. **Monitoring**: Observability and tracing integration
+### Additional Data Models
+
+- JavaScript data model
+- Lua data model
+- Custom data model support
+
+### Advanced Features
+
+- State machine visualization
+- Debugging and monitoring tools
+- Performance optimization
+- Distributed state machine support
