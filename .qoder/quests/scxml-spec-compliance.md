@@ -12,19 +12,20 @@ The SCXML implementation follows a modular architecture with the following core 
 
 ``mermaid
 graph TD
-    A[SCXML Interpreter] --> B[XML DOM Parser]
-    A --> C[Data Model]
-    A --> D[Event System]
-    A --> E[IoProcessor Manager]
-    A --> F[Clock Abstraction]
-    B --> G[xmldom Package]
-    C --> H[ECMAScript/Null Data Models]
-    D --> I[MUID-based Event IDs]
-    E --> J[HTTP/WebSocket/SCXML IoProcessors]
-    F --> K[Real/Simulated Time]
+A[SCXML Interpreter] --> B[XML DOM Parser]
+A --> C[Data Model]
+A --> D[Event System]
+A --> E[IoProcessor Manager]
+A --> F[Clock Abstraction]
+B --> G[xmldom Package]
+C --> H[ECMAScript/Null Data Models]
+D --> I[MUID-based Event IDs]
+E --> J[HTTP/WebSocket/SCXML IoProcessors]
+F --> K[Real/Simulated Time]
 
     style G fill:#e1f5fe
     style A fill:#f3e5f5
+
 ```
 
 ### Core Components
@@ -51,17 +52,19 @@ The SCXML implementation utilizes the custom xmldom package for all XML processi
 ### XML Processing Flow
 
 ```
+
 sequenceDiagram
-    participant Parser
-    participant xmldom
-    participant Interpreter
-    
+participant Parser
+participant xmldom
+participant Interpreter
+
     Parser->>xmldom: Parse SCXML document
     xmldom-->>Parser: Return DOM Document
     Parser->>Interpreter: Extract state machine definition
     Interpreter->>xmldom: Query elements/attributes
     xmldom-->>Interpreter: Return node data
-```
+
+````
 
 The xmldom package provides all necessary DOM interfaces required by the SCXML specification, including Document, Element, Node, and related interfaces. This allows for standards-compliant parsing and manipulation of SCXML documents.
 
@@ -185,7 +188,7 @@ The SCXML parser will use xmldom interfaces for all XML operations:
 doc := xmldom.Parse(scxmlContent)
 scxmlElement := doc.DocumentElement()
 stateElements := scxmlElement.GetElementsByTagName("state")
-```
+````
 
 ### MUID Integration
 
