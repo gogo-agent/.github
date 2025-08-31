@@ -5,7 +5,7 @@ use (
 	./jsonpatch
 	./jsonpointer
 	./jsonschema
-	./memlite
+	./memory
 	./muid
 	./registry
 	./scxml
