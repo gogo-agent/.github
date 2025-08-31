@@ -1,274 +1,57 @@
 ---
-alwaysApply: true
+globs: *.go
+alwaysApply: false
 ---
 
-You MUST adhere to these 16 non-negotiable requirements:
-
-1. **NEVER create unnecessary files or folders**
-2. **NEVER use testify** - Use standard `testing` package only
-3. **NEVER leave placeholders, TODOs, or missing implementations**
-4. **NEVER introduce breaking changes unless explicitly requested**
-5. **Always use timeout when running tests**
-6. **Use Make() for non-pointer factory functions**
-7. **Use New() for pointer factory functions**
-8. **Use standard libraries whenever possible**
-9. **Use slog for logging**
-10. **Use sync.OnceValue instead of init**
-11. **Use OpenTelemetry (OTEL) for metrics and tracing**
-12. **Use channels and atomics instead of mutexes**
-13. **Follow official Go naming conventions**
-14. **Use stack allocation unless pointer required for no-copy**
-15. **Use dependency injection instead of globals**
-16. **Achieve >90% test coverage with 100% tests passing**
-
-## Standard Library Patterns
-
-Match stdlib conventions exactly:
-
-```go
-// CORRECT
-func Unmarshal(ctx context.Context, data []byte, v interface{}) error
-func Marshal(ctx context.Context, v interface{}) ([]byte, error)  
-func New() *Client        // Pointer returns
-func Make() Client        // Value returns
-func (c *Client) Close() error
-
-// WRONG
-func ParseDocument(r io.Reader) (*Document, error)
-func Create() *Client
-func Shutdown() error
-```
-
-## Context Propagation
-
-ALL major functions must accept `context.Context`:
-
-```go
-func ProcessData(ctx context.Context, data []byte) error {
-    span := trace.SpanFromContext(ctx)
-    span.SetAttributes(attribute.String("data.size", fmt.Sprintf("%d", len(data))))
-    return processWithContext(ctx, data)
-}
-```
-
-## Concurrency Patterns
-
-### Channels and Atomics Over Mutexes
-
-```go
-import "sync/atomic"
-
-// PREFERRED: Atomic operations
-type Counter struct {
-    value atomic.Int64
-}
-
-func (c *Counter) Add(n int64) int64 {
-    return c.value.Add(n)
-}
-
-// PREFERRED: Channel coordination
-func (p *Processor) Start(ctx context.Context) {
-    go func() {
-        for {
-            select {
-            case item := <-p.items:
-                p.process(ctx, item)
-            case <-ctx.Done():
-                return
-            }
-        }
-    }()
-}
-```
-
-### Select Over Polling
-
-```go
-// CORRECT: Non-blocking operations
-func processWithTimeout(ctx context.Context, timeout time.Duration) error {
-    result := make(chan error, 1)
-    go func() { result <- doWork(ctx) }()
-    
-    select {
-    case err := <-result:
-        return err
-    case <-time.After(timeout):
-        return ErrTimeout
-    case <-ctx.Done():
-        return ctx.Err()
-    }
-}
-```
-
-## Structured Logging
-
-```go
-import "log/slog"
-
-func ProcessItem(ctx context.Context, item Item) error {
-    slog.InfoContext(ctx, "processing item",
-        "item_id", item.ID,
-        "item_type", item.Type,
-    )
-    
-    if err := validate(ctx, item); err != nil {
-        slog.ErrorContext(ctx, "validation failed",
-            "item_id", item.ID,
-            "error", err,
-        )
-        return fmt.Errorf("validation failed: %w", err)
-    }
-    
-    return nil
-}
-```
-
-## Testing Requirements
-
-### Comprehensive Coverage
-
-```go
-func TestProcessor(t *testing.T) {
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    
-    tests := []struct {
-        name        string
-        input       string
-        expected    string
-        expectError bool
-    }{
-        {"valid input", "test", "processed_test", false},
-        {"invalid input", "", "", true},
-    }
-    
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            result, err := Process(ctx, tt.input)
-            
-            if tt.expectError {
-                if err == nil {
-                    t.Error("expected error but got none")
-                }
-                return
-            }
-            
-            if err != nil {
-                t.Errorf("unexpected error: %v", err)
-            }
-            
-            if result != tt.expected {
-                t.Errorf("expected %q, got %q", tt.expected, result)
-            }
-        })
-    }
-}
-```
-
-### Property-Based Testing
-
-```go
-import "testing/quick"
-
-func TestInvariants(t *testing.T) {
-    property := func(inputs []string) bool {
-        processor := NewProcessor()
-        for _, input := range inputs {
-            processor.Add(input)
-        }
-        return processor.IsValid() // Some invariant check
-    }
-    
-    if err := quick.Check(property, nil); err != nil {
-        t.Error("Property violated:", err)
-    }
-}
-```
-
-### Benchmarks
-
-```go
-func BenchmarkMapOperations(b *testing.B) {
-    data := make(map[string]int, 1000)
-    for i := 0; i < 1000; i++ {
-        data[fmt.Sprintf("key%d", i)] = i
-    }
-    
-    b.ResetTimer()
-    for i := 0; i < b.N; i++ {
-        _ = data["key500"] // Leverage Go 1.25 Swiss Tables
-    }
-}
-```
-
-## OpenTelemetry Integration
-
-```go
-import (
-    "go.opentelemetry.io/otel"
-    "go.opentelemetry.io/otel/attribute"
-    "go.opentelemetry.io/otel/codes"
-)
-
-func ProcessRequest(ctx context.Context, req Request) error {
-    tracer := otel.Tracer("service")
-    ctx, span := tracer.Start(ctx, "ProcessRequest")
-    defer span.End()
-    
-    span.SetAttributes(
-        attribute.String("request.id", req.ID),
-        attribute.String("request.type", req.Type),
-    )
-    
-    if err := validate(ctx, req); err != nil {
-        span.RecordError(err)
-        span.SetStatus(codes.Error, "Validation failed")
-        return err
-    }
-    
-    return nil
-}
-```
-
-## Dependency Injection
-
-```go
-// In datamodel package - using the registry pattern
-var Register, Unregister, New, List = registry.NewWithConfig[DataModel, Config]()
-```
-
-## Performance Patterns
-
-### Stack Allocation
-
-```go
-// PREFERRED: Stack-allocated structs
-func ProcessData(data Data) error {
-    return validate(data) // data passed by value
-}
-
-// Only use pointers when necessary
-func UpdateData(data *Data) error {
-    data.Modified = time.Now()
-    return save(data)
-}
-```
-
-## Error Handling
-
-```go
-var (
-    ErrInvalidInput = errors.New("invalid input")
-    ErrTimeout      = errors.New("operation timeout")
-)
-
-func Validate(input string) error {
-    if input == "" {
-        return fmt.Errorf("empty input: %w", ErrInvalidInput)
-    }
-    return nil
-}
-```
-
-Follow every requirement above. No shortcuts, placeholders, or exceptions. Code must be production-ready with full test coverage and proper instrumentation.
+You MUST NEVER create unnecessary files or folders.
+You MUST NEVER use testify. You MUST USE the standard testing package only.
+You MUST NEVER leave placeholders, TODOs, or missing implementations.
+You MUST NEVER introduce breaking changes unless explicitly requested.
+You MUST ALWAYS use a timeout when running tests.
+You MUST USE Make() for non-pointer factory functions.
+You MUST USE New() for pointer-returning factory functions.
+You MUST USE standard libraries whenever possible.
+You MUST USE slog for logging.
+You MUST USE sync.OnceValue instead of init.
+You MUST USE OpenTelemetry for metrics and tracing.
+You MUST USE channels and atomics instead of mutexes.
+You MUST follow official Go naming conventions.
+You MUST prefer stack allocation unless a pointer is required for no-copy semantics.
+You MUST use dependency injection instead of globals.
+You MUST achieve over 90% test coverage with all tests passing.
+You MUST match standard library patterns and naming. You MUST expose Unmarshal and Marshal that take context and return errors, use New for pointer returns, Make for value returns.and Close methods on resources. You MUST avoid ad-hoc names like Create or Shutdown and avoid surprise Parse­\* APIs that do not follow stdlib shape.
+You MUST accept context.Context in all major functions. You MUST propagate it downstream, extract or create spans as needed, and attach useful attributes. You MUST never drop or re-create context silently.
+You MUST prefer channels and atomic types over mutexes for coordination. You MUST structure long-running goroutines with select on work channels and ctx.Done. You MUST avoid polling. You MUST use select with explicit timeouts for non-blocking behavior.
+You MUST produce structured logs with slog. You MUST include stable keys, correlate with request or span IDs, and log validation or processing failures with errors attached.
+You MUST write table-driven tests with context timeouts. You MUST add property-based tests for invariants using testing/quick where appropriate. You MUST include benchmarks for critical paths and realistic data sizes.
+You MUST integrate OpenTelemetry correctly. You MUST create spans with clear names, set attributes for identifiers and types, record errors, and set status codes on failure.
+You MUST implement dependency injection. You MUST construct components through constructors or registries and avoid globals. You MAY use a registry pattern like NewWithConfig for pluggable datamodels.
+You MUST prefer stack allocation and value semantics for small structs. You MUST only use pointers when mutation, interface requirements, or no-copy guarantees demand it.
+You MUST use explicit, wrapped errors with %w and exported sentinel errors for programmatic checks. You MUST avoid panics in library code and return typed or wrapped errors instead.
+You MUST follow every requirement above with no shortcuts or exceptions. You MUST deliver production-ready code with full tests, instrumentation, and clear APIs.
+You MUST NEVER create unnecessary files or folders.
+You MUST NEVER use testify. You MUST USE the standard testing package only.
+You MUST NEVER leave placeholders, TODOs, or missing implementations.
+You MUST NEVER introduce breaking changes unless explicitly requested.
+You MUST ALWAYS use a timeout when running tests.
+You MUST USE Make() for non-pointer factory functions.
+You MUST USE New() for pointer-returning factory functions.
+You MUST USE standard libraries whenever possible.
+You MUST USE slog for logging.
+You MUST USE sync.OnceValue instead of init.
+You MUST USE OpenTelemetry for metrics and tracing.
+You MUST USE channels and atomics instead of mutexes.
+You MUST follow official Go naming conventions.
+You MUST prefer stack allocation unless a pointer is required for no-copy semantics.
+You MUST use dependency injection instead of globals.
+You MUST achieve over 90% test coverage with all tests passing.
+You MUST match standard library patterns and naming. You MUST expose Unmarshal and Marshal that take context and return errors, use New for pointer returns, Make for value returns, and Close methods on resources. You MUST avoid ad-hoc names like Create or Shutdown and avoid surprise Parse­\* APIs that do not follow stdlib shape.
+You MUST accept context.Context in all major functions. You MUST propagate it downstream, extract or create spans as needed, and attach useful attributes. You MUST never drop or re-create context silently.
+You MUST prefer channels and atomic types over mutexes for coordination. You MUST structure long-running goroutines with select on work channels and ctx.Done. You MUST avoid polling. You MUST use select with explicit timeouts for non-blocking behavior.
+You MUST produce structured logs with slog. You MUST include stable keys, correlate with request or span IDs, and log validation or processing failures with errors attached.
+You MUST write table-driven tests with context timeouts. You MUST add property-based tests for invariants using testing/quick where appropriate. You MUST include benchmarks for critical paths and realistic data sizes.
+You MUST integrate OpenTelemetry correctly. You MUST create spans with clear names, set attributes for identifiers and types, record errors, and set status codes on failure.
+You MUST implement dependency injection. You MUST construct components through constructors or registries and avoid globals. You MAY use a registry pattern like NewWithConfig for pluggable datamodels.
+You MUST prefer stack allocation and value semantics for small structs. You MUST only use pointers when mutation, interface requirements, or no-copy guarantees demand it.
+You MUST use explicit, wrapped errors with %w and exported sentinel errors for programmatic checks. You MUST avoid panics in library code and return typed or wrapped errors instead.
+You MUST follow every requirement above with no shortcuts or exceptions. You MUST deliver production-ready code with full tests, instrumentation, and clear APIs.

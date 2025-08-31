@@ -1,0 +1,134 @@
+---
+globs: xmldom/**/*.go
+alwaysApply: false
+---
+
+# XML DOM Specific Requirements
+
+You MUST implement W3C DOM Core specification interfaces EXACTLY as specified without deviations.
+You MUST implement XPath 1.0 specification following the DOM Living Standard XPath interfaces.
+You MUST maintain full conformance with the W3C XML 1.0 specification for parsing and validation.
+You MUST prioritize specification compliance over performance optimizations.
+You MUST support concurrent DOM operations with appropriate synchronization.
+
+# Package Structure Requirements
+
+You MUST maintain the existing single-package organization:
+
+* xmldom/ - All DOM and XPath implementation in one package
+* Core DOM interfaces: Node, Document, Element, Attr, Text, Comment, etc.
+* XPath interfaces: XPathExpression, XPathResult, XPathNSResolver
+* Parser components: decoder.go, encoder.go, marshal.go
+* Utility components: escape.go for XML escaping/unescaping
+* Test data: testdata/ with W3C XML conformance test suite
+
+# DOM Interface Requirements
+
+You MUST implement all DOM Core Level 2 interfaces exactly as specified:
+
+* Node interface with all required methods and properties
+* Document interface with factory methods and tree operations
+* Element interface with attribute and child manipulation
+* Live NodeList and NamedNodeMap collections that reflect DOM changes
+* DocumentFragment for efficient DOM manipulation
+* Range interface for content selection and manipulation
+* NodeIterator and TreeWalker for DOM traversal
+
+You MUST use DOMString type consistently throughout the API:
+
+* DOMString represents UTF-8 strings (documented deviation from UTF-16 spec)
+* All DOM methods MUST accept and return DOMString types
+* Convert between DOMString and string only at package boundaries
+
+# XPath Implementation Requirements
+
+You MUST implement XPath 1.0 specification with DOM Living Standard interfaces:
+
+* XPathExpression interface for compiled expressions
+* XPathResult interface with all result types (ANY\_TYPE, NUMBER\_TYPE, STRING\_TYPE, BOOLEAN\_TYPE, etc.)
+* XPathNSResolver interface for namespace resolution
+* Document.Evaluate() method matching browser APIs
+* Support for all XPath 1.0 axes, functions, and operators
+
+You MUST leverage existing DOM infrastructure for XPath evaluation:
+
+* Use existing Element lookup indexes for performance
+* Integrate with live NodeList implementation
+* Utilize existing tree traversal utilities
+* Maintain namespace support consistency
+
+# XML Processing Requirements
+
+You MUST implement complete XML 1.0 parsing and serialization:
+
+* Support all XML node types: Element, Text, Comment, ProcessingInstruction, CDATASection
+* Handle XML namespaces correctly with prefix and URI resolution
+* Implement proper XML escaping and unescaping
+* Support XML Schema validation where applicable
+* Handle XML entity references appropriately
+
+You MUST maintain W3C XML conformance:
+
+* Pass W3C XML conformance test suite
+* Handle malformed XML according to specification
+* Implement proper error reporting for XML violations
+* Support XML 1.0 and XML 1.1 specifications
+
+# Concurrency Requirements
+
+You MUST implement thread-safe DOM operations:
+
+* Use sync.RWMutex for protecting DOM tree modifications
+* Allow concurrent read operations where safe
+* Ensure live collections remain consistent under concurrent access
+* Implement proper synchronization for XPath evaluation
+
+# Performance Requirements
+
+You MUST optimize for common DOM operations:
+
+* Maintain element ID indexes for fast lookups
+* Implement efficient tree traversal algorithms
+* Cache compiled XPath expressions where beneficial
+* Use memory-efficient node representations
+* Benchmark critical paths with realistic data sizes
+
+# Testing Requirements
+
+You MUST achieve comprehensive test coverage:
+
+* W3C XML conformance tests (conformance\_test.go)
+* DOM Core interface tests with edge cases
+* XPath 1.0 specification compliance tests
+* Performance benchmarks for critical operations
+* Concurrent access testing
+* Memory leak detection tests
+
+You MUST use the W3C test suite data:
+
+* testdata/ contains official W3C XML conformance tests
+* All tests MUST pass according to W3C specifications
+* Test both valid and invalid XML documents
+* Verify proper error handling and reporting
+
+# Error Handling Requirements
+
+You MUST implement specification-compliant error handling:
+
+* Return appropriate DOM exceptions for invalid operations
+* Use explicit wrapped errors with %w for Go error handling
+* Export sentinel errors for programmatic error checking
+* NEVER panic in library code - return typed errors instead
+* Follow W3C DOM exception hierarchy where applicable
+
+# Memory Management Requirements
+
+You MUST implement efficient memory usage:
+
+* Minimize object allocations in hot paths
+* Implement proper cleanup for detached DOM nodes
+* Avoid memory leaks in live collections
+* Use object pooling for frequently created objects where beneficial
+* Profile memory usage with realistic workloads
+
+You MUST follow every requirement above with no shortcuts or exceptions. You MUST deliver production-ready XML DOM implementation with full W3C specification compliance, comprehensive XPath 1.0 support, thread safety, and extensive test coverage.

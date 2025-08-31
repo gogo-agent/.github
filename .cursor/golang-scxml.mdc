@@ -1,0 +1,170 @@
+---
+globs: scxml/**/*.go
+alwaysApply: false
+---
+
+# SCXML-Specific Requirements
+
+You MUST implement the W3C SCXML specification algorithm EXACTLY as specified in the pseudocode without deviations.
+You MUST use the xmldom package for ALL XML parsing, navigation, and manipulation operations.
+You MUST use the muid package for generating unique IDs for SCXML elements when id attributes are omitted.
+You MUST use the registry package for managing IoProcessors, data models, and extensible components.
+You MUST use string for ID types with a comment indicating it's from muid.String().
+You MUST prioritize functional correctness and W3C specification compliance over performance optimizations.
+You MUST support backward compatibility breaking changes as this project allows it.
+
+# Package Structure Requirements
+
+You MUST maintain the existing package organization:
+
+* scxml/ - Root package with core types (event.go, interpreter.go)
+* scxml/clock/ - Clock abstraction (clock.go, clock\_test.go)
+* scxml/datamodel/ - Base data model interface (datamodel.go)
+* scxml/datamodel/ecmascript/ - ECMAScript data model implementation
+* scxml/datamodel/null/ - Null data model implementation
+* scxml/datamodel/xpath/ - XPath data model implementation
+* scxml/ioprocessor/ - IoProcessor interface and implementations
+* scxml/ioprocessor/http/ - HTTP IoProcessor
+* scxml/observability/ - Observability helpers and tracing
+* scxml/docs/ - Documentation files
+
+You MUST follow Go naming conventions and avoid package name suffixes in type names:
+
+* Use ecmascript.DataModel NOT ecmascript.ECMAScriptDataModel
+* Use xpath.DataModel NOT xpath.XPathDataModel
+* Use null.DataModel NOT null.NullDataModel
+* Use http.IOProcessor NOT http.HTTPIOProcessor
+* Package names should be lowercase and descriptive
+
+# Context and Observability Requirements
+
+You MUST use context.Context extensively for OpenTelemetry trace propagation:
+
+* ALL major functions MUST accept and propagate context: ParseDocument(ctx), generateMissingIDs(ctx), Validate(ctx)
+* ALL recursive functions MUST propagate context for trace continuity
+* Events MUST store TraceContext for distributed tracing
+* Use observability package helper functions: TraceStateTransition(ctx), TraceEventProcessing(ctx), TraceDataModelOperation(ctx)
+
+You MUST use gtimeout for ALL command execution as mandated by project observability requirements.
+You MUST implement extensive observability with tracing, spans, and context propagation throughout the SCXML processing pipeline.
+
+# Algorithm Implementation Requirements
+
+You MUST implement these core W3C SCXML algorithms exactly as specified:
+
+* interpret(doc) - Main interpretation procedure
+* mainEventLoop() - Core event processing loop
+* exitInterpreter() - Cleanup and finalization
+* selectEventlessTransitions() - Eventless transition selection
+* selectTransitions(event) - Event-triggered transition selection
+* removeConflictingTransitions() - Conflict resolution
+* microstep(enabledTransitions) - Atomic state machine step
+* exitStates() - State exit procedure
+* computeExitSet() - Exit state computation
+* executeTransitionContent() - Transition action execution
+* enterStates() - State entry procedure
+* computeEntrySet() - Entry state computation
+* addDescendantStatesToEnter() - Descendant state entry
+* addAncestorStatesToEnter() - Ancestor state entry
+
+You MUST implement these helper functions exactly as specified:
+
+* getProperAncestors(state1, state2) - Ancestry computation
+* isDescendant(state1, state2) - Descendant relationship check
+* getChildStates(state1) - Child state enumeration
+* isAtomicState(state) - Atomic state check
+* isHistoryState(state) - History pseudo-state check
+* isCompoundState(state) - Compound state check
+* isParallelState(state) - Parallel state check
+* isFinalState(state) - Final state check
+* isSCXMLElement(state) - SCXML root element check
+* conditionMatch(transition) - Transition condition evaluation
+* nameMatch(eventDescriptor, eventName) - Event name matching
+* findLCCA(stateList) - Least Common Compound Ancestor
+* getTransitionDomain(t) - Transition domain computation
+* getEffectiveTargetStates(transition) - Effective target resolution
+* isInFinalState(s) - Final state check for compound/parallel states
+
+# Event System Requirements
+
+You MUST implement a dual queue system following W3C specification:
+
+* Internal queue: High-priority FIFO for system events
+* External queue: Blocking queue with delayed event support
+* Events MUST use MUID for unique identification
+* Event matching MUST support wildcards and prefix matching exactly per W3C spec
+* System events MUST include: error.execution, error.communication, error.platform, done.state, done.invoke, cancel
+
+# Data Model Requirements
+
+You MUST support multiple data models through the registry pattern:
+
+* Null data model (minimal W3C-compliant implementation)
+* ECMAScript data model (full scripting support)
+* XPath data model (XML-based expressions)
+* Use registry.Register() for data model registration
+* Support early and late binding as specified in W3C SCXML
+
+# Clock Abstraction Requirements
+
+You MUST implement a single clock interface that supports:
+
+* Real-time operations for production
+* Deterministic time control for testing
+* Time acceleration for simulation
+* ALL time operations MUST go through the clock interface
+
+# Testing Requirements
+
+You MUST write comprehensive tests following Go best practices:
+
+* One test file per implementation file with \_test.go suffix
+* Property-based testing for invariants using testing/quick
+* Concurrent testing for thread-safe components
+* Integration tests for end-to-end workflows
+* Benchmarks for performance-critical paths
+* Minimum 80% code coverage required
+* ALL tests MUST use real dependencies (no mocking)
+* Use testutils.NewDB(ctx, t) for databases if needed
+* Wait for signals using hsm.AfterDispatch() instead of time.Sleep()
+
+# Error Handling Requirements
+
+You MUST implement W3C-compliant error handling:
+
+* Generate appropriate error.\* system events
+* Use explicit wrapped errors with %w
+* Export sentinel errors for programmatic checks
+* NEVER panic in library code
+* Return typed errors following Go conventions
+
+# XML Processing Requirements
+
+You MUST use xmldom package exclusively for:
+
+* Parsing SCXML documents into DOM structures
+* Navigating XML elements and attributes
+* Validating SCXML document structure
+* Supporting namespaces and XML Schema validation
+* Manipulating XML content during execution
+
+# Component Registry Integration
+
+You MUST use registry package for:
+
+* IoProcessor registration and lifecycle management
+* Data model provider registration
+* Custom action handler registration
+* Pluggable architecture support
+* Component discovery and instantiation
+
+# MUID Integration Requirements
+
+You MUST use muid package for:
+
+* Generating unique event IDs with proper causality tracking
+* Ensuring deterministic behavior in distributed systems
+* Providing unique IDs for SCXML elements missing id attributes
+* Converting to string representation with muid.String() and appropriate comments
+
+You MUST follow every requirement above with no shortcuts or exceptions. You MUST deliver production-ready SCXML implementation with full W3C specification compliance, comprehensive tests, extensive observability, and clean integration with xmldom, muid, and registry packages.
