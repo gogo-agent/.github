@@ -127,6 +127,7 @@ You MUST write comprehensive tests following Go best practices:
 * ALL tests MUST use real dependencies (no mocking)
 * Use testutils.NewDB(ctx, t) for databases if needed
 * Wait for signals using hsm.AfterDispatch() instead of time.Sleep()
+* ALL 230 IRP (Implementation Report Platform) tests in @testdata/ MUST pass execution
 
 # Error Handling Requirements
 

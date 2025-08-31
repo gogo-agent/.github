@@ -3,55 +3,87 @@ globs: *.go
 alwaysApply: false
 ---
 
+# Prohibited Practices
+
 You MUST NEVER create unnecessary files or folders.
 You MUST NEVER use testify. You MUST USE the standard testing package only.
 You MUST NEVER leave placeholders, TODOs, or missing implementations.
 You MUST NEVER introduce breaking changes unless explicitly requested.
-You MUST ALWAYS use a timeout when running tests.
+You MUST NEVER drop or re-create context silently.
+You MUST NEVER panic in library code - return typed or wrapped errors instead.
+
+# Required Libraries and Tools
+
+You MUST USE standard libraries whenever possible.
+You MUST USE slog for structured logging.
+You MUST USE sync.OnceValue instead of init functions.
+You MUST USE OpenTelemetry for metrics and tracing.
+You MUST USE channels and atomics instead of mutexes for coordination.
+
+# Naming and API Design
+
+You MUST follow official Go naming conventions.
 You MUST USE Make() for non-pointer factory functions.
 You MUST USE New() for pointer-returning factory functions.
-You MUST USE standard libraries whenever possible.
-You MUST USE slog for logging.
-You MUST USE sync.OnceValue instead of init.
-You MUST USE OpenTelemetry for metrics and tracing.
-You MUST USE channels and atomics instead of mutexes.
-You MUST follow official Go naming conventions.
+You MUST match standard library patterns and naming:
+
+* Expose Unmarshal and Marshal that take context and return errors
+* Use New for pointer returns, Make for value returns
+* Include Close methods on resources
+* AVOID ad-hoc names like Create or Shutdown
+* AVOID surprise Parse\* APIs that do not follow stdlib shape
+
+# Memory Management
+
 You MUST prefer stack allocation unless a pointer is required for no-copy semantics.
+You MUST prefer value semantics for small structs.
+You MUST only use pointers when mutation, interface requirements, or no-copy guarantees demand it.
+
+# Context and Observability
+
+You MUST accept context.Context in all major functions.
+You MUST propagate context downstream and extract or create spans as needed.
+You MUST attach useful attributes to spans.
+You MUST integrate OpenTelemetry correctly:
+
+* Create spans with clear names
+* Set attributes for identifiers and types
+* Record errors and set status codes on failure
+
+You MUST produce structured logs with slog:
+
+* Include stable keys
+* Correlate with request or span IDs
+* Log validation or processing failures with errors attached
+
+# Concurrency
+
+You MUST prefer channels and atomic types over mutexes for coordination.
+You MUST structure long-running goroutines with select on work channels and ctx.Done.
+You MUST avoid polling.
+You MUST use select with explicit timeouts for non-blocking behavior.
+
+# Dependency Management
+
 You MUST use dependency injection instead of globals.
-You MUST achieve over 90% test coverage with all tests passing.
-You MUST match standard library patterns and naming. You MUST expose Unmarshal and Marshal that take context and return errors, use New for pointer returns, Make for value returns.and Close methods on resources. You MUST avoid ad-hoc names like Create or Shutdown and avoid surprise Parse­\* APIs that do not follow stdlib shape.
-You MUST accept context.Context in all major functions. You MUST propagate it downstream, extract or create spans as needed, and attach useful attributes. You MUST never drop or re-create context silently.
-You MUST prefer channels and atomic types over mutexes for coordination. You MUST structure long-running goroutines with select on work channels and ctx.Done. You MUST avoid polling. You MUST use select with explicit timeouts for non-blocking behavior.
-You MUST produce structured logs with slog. You MUST include stable keys, correlate with request or span IDs, and log validation or processing failures with errors attached.
-You MUST write table-driven tests with context timeouts. You MUST add property-based tests for invariants using testing/quick where appropriate. You MUST include benchmarks for critical paths and realistic data sizes.
-You MUST integrate OpenTelemetry correctly. You MUST create spans with clear names, set attributes for identifiers and types, record errors, and set status codes on failure.
-You MUST implement dependency injection. You MUST construct components through constructors or registries and avoid globals. You MAY use a registry pattern like NewWithConfig for pluggable datamodels.
-You MUST prefer stack allocation and value semantics for small structs. You MUST only use pointers when mutation, interface requirements, or no-copy guarantees demand it.
-You MUST use explicit, wrapped errors with %w and exported sentinel errors for programmatic checks. You MUST avoid panics in library code and return typed or wrapped errors instead.
-You MUST follow every requirement above with no shortcuts or exceptions. You MUST deliver production-ready code with full tests, instrumentation, and clear APIs.
-You MUST NEVER create unnecessary files or folders.
-You MUST NEVER use testify. You MUST USE the standard testing package only.
-You MUST NEVER leave placeholders, TODOs, or missing implementations.
-You MUST NEVER introduce breaking changes unless explicitly requested.
+You MUST construct components through constructors or registries.
+You MAY use a registry pattern like NewWithConfig for pluggable components.
+
+# Error Handling
+
+You MUST use explicit, wrapped errors with %w.
+You MUST export sentinel errors for programmatic checks.
+You MUST return typed errors following Go conventions.
+
+# Testing Requirements
+
 You MUST ALWAYS use a timeout when running tests.
-You MUST USE Make() for non-pointer factory functions.
-You MUST USE New() for pointer-returning factory functions.
-You MUST USE standard libraries whenever possible.
-You MUST USE slog for logging.
-You MUST USE sync.OnceValue instead of init.
-You MUST USE OpenTelemetry for metrics and tracing.
-You MUST USE channels and atomics instead of mutexes.
-You MUST follow official Go naming conventions.
-You MUST prefer stack allocation unless a pointer is required for no-copy semantics.
-You MUST use dependency injection instead of globals.
 You MUST achieve over 90% test coverage with all tests passing.
-You MUST match standard library patterns and naming. You MUST expose Unmarshal and Marshal that take context and return errors, use New for pointer returns, Make for value returns, and Close methods on resources. You MUST avoid ad-hoc names like Create or Shutdown and avoid surprise Parse­\* APIs that do not follow stdlib shape.
-You MUST accept context.Context in all major functions. You MUST propagate it downstream, extract or create spans as needed, and attach useful attributes. You MUST never drop or re-create context silently.
-You MUST prefer channels and atomic types over mutexes for coordination. You MUST structure long-running goroutines with select on work channels and ctx.Done. You MUST avoid polling. You MUST use select with explicit timeouts for non-blocking behavior.
-You MUST produce structured logs with slog. You MUST include stable keys, correlate with request or span IDs, and log validation or processing failures with errors attached.
-You MUST write table-driven tests with context timeouts. You MUST add property-based tests for invariants using testing/quick where appropriate. You MUST include benchmarks for critical paths and realistic data sizes.
-You MUST integrate OpenTelemetry correctly. You MUST create spans with clear names, set attributes for identifiers and types, record errors, and set status codes on failure.
-You MUST implement dependency injection. You MUST construct components through constructors or registries and avoid globals. You MAY use a registry pattern like NewWithConfig for pluggable datamodels.
-You MUST prefer stack allocation and value semantics for small structs. You MUST only use pointers when mutation, interface requirements, or no-copy guarantees demand it.
-You MUST use explicit, wrapped errors with %w and exported sentinel errors for programmatic checks. You MUST avoid panics in library code and return typed or wrapped errors instead.
-You MUST follow every requirement above with no shortcuts or exceptions. You MUST deliver production-ready code with full tests, instrumentation, and clear APIs.
+You MUST write table-driven tests with context timeouts.
+You MUST add property-based tests for invariants using testing/quick where appropriate.
+You MUST include benchmarks for critical paths and realistic data sizes.
+
+# Final Requirements
+
+You MUST follow every requirement above with no shortcuts or exceptions.
+You MUST deliver production-ready code with full tests, instrumentation, and clear APIs.
