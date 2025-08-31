@@ -1,0 +1,27 @@
+[submodule "gemini"]
+	path = gemini
+	url = https://github.com/gogo-agent/gemini.git
+[submodule "jsonpatch"]
+	path = jsonpatch
+	url = https://github.com/gogo-agent/jsonpatch.git
+[submodule "jsonpointer"]
+	path = jsonpointer
+	url = https://github.com/gogo-agent/jsonpointer.git
+[submodule "jsonschema"]
+	path = jsonschema
+	url = https://github.com/gogo-agent/jsonschema.git
+[submodule "memory"]
+	path = memory
+	url = https://github.com/gogo-agent/memory.git
+[submodule "muid"]
+	path = muid
+	url = https://github.com/gogo-agent/muid.git
+[submodule "registry"]
+	path = registry
+	url = https://github.com/gogo-agent/registry.git
+[submodule "scxml"]
+	path = scxml
+	url = https://github.com/gogo-agent/scxml.git
+[submodule "xmldom"]
+	path = xmldom
+	url = https://github.com/gogo-agent/xmldom.git
